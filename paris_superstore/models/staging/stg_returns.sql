@@ -7,8 +7,8 @@ with source as (
 renamed as (
 
     select
-        "Order ID"                                      as order_id,
-        "Returned"::boolean                             as is_returned                                            as is_returned
+        "Order ID"      as order_id,
+        "Returned"      as is_returned
 
     from source
 
