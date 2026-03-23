@@ -6,14 +6,32 @@ with orders as (
 
 products as (
 
-    select distinct
+    select
+        product_id,
+        product_name,
+        category,
+        sub_category,
+        row_number() over (
+            partition by product_id
+            order by count(*) desc
+        ) as rn
+
+    from orders
+    group by 1, 2, 3, 4
+
+),
+
+deduped as (
+
+    select
         product_id,
         product_name,
         category,
         sub_category
 
-    from orders
+    from products
+    where rn = 1
 
 )
 
-select * from products
+select * from deduped
