@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: superstore_raw
+    description: "Raw Superstore CSV files loaded into DuckDB from data/raw/"
+    schema: main
+
+    tables:
+      - name: orders
+        identifier: raw_orders
+
+      - name: returns
+        identifier: raw_returns
+
+      - name: people
+        identifier: raw_people
