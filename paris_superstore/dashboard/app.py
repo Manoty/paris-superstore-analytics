@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
+import statsmodels.api as sm
 
 # ── page config ────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -101,8 +102,19 @@ def load_data():
 sales_df, returns_df = load_data()
 
 @st.cache_data
-def load_discount():
-    return q("select * from main_marts.mart_discount_analysis")
+def load_state():
+    return q("""
+        select
+            state,
+            region,
+            sum(sales)  as revenue,
+            sum(profit) as profit,
+            count(distinct order_id) as orders
+        from main_marts.fct_orders
+        group by 1, 2
+    """)
+
+state_raw = load_state()
 
 discount_df = load_discount()
 
@@ -324,3 +336,121 @@ with tab3:
                    color_discrete_sequence=PALETTE, markers=True)
     fig9.update_traces(marker_size=4, line_width=2)
     st.plotly_chart(chart_layout(fig9, legend=True), use_container_width=True)
+    
+    
+# ── tab 4 — discount impact ────────────────────────────────────────────────
+with tab4:
+    st.markdown("#### Discount rate vs profit margin")
+    st.caption("Each point is one order line. The pattern reveals where discounting destroys margin.")
+
+    col1, col2 = st.columns([3, 1])
+
+    with col2:
+        cat_filter = st.multiselect(
+            "Category",
+            options=sorted(discount_df["category"].unique()),
+            default=sorted(discount_df["category"].unique()),
+            key="disc_cat"
+        )
+        show_trendline = st.checkbox("Show trendline", value=True)
+
+    disc = discount_df[discount_df["category"].isin(cat_filter)].copy()
+
+    with col1:
+        fig10 = px.scatter(
+            disc,
+            x="discount_pct",
+            y="profit_margin_pct",
+            color="category",
+            size="sales",
+            size_max=18,
+            hover_data=["product_name", "region", "sub_category", "sales"],
+            color_discrete_sequence=PALETTE,
+            trendline="ols" if show_trendline else None,
+            labels={
+                "discount_pct": "Discount %",
+                "profit_margin_pct": "Profit margin %",
+            }
+        )
+        fig10.add_hline(
+            y=0,
+            line_dash="dash",
+            line_color=PRIMARY,
+            line_width=1,
+            annotation_text="breakeven",
+            annotation_font_color=PRIMARY
+        )
+        fig10.update_traces(marker_line_width=0, selector=dict(mode="markers"))
+        st.plotly_chart(chart_layout(fig10, legend=True), use_container_width=True)
+
+    st.markdown("#### Average profit margin by discount tier")
+    tier = disc.groupby("discount_tier").agg(
+        avg_margin=("profit_margin_pct", "mean"),
+        order_count=("order_id", "count")
+    ).reset_index()
+    tier["avg_margin"] = tier["avg_margin"].round(2)
+
+    tier_order = ["No discount", "1–10%", "11–20%", "21–30%", "30%+"]
+    tier["discount_tier"] = pd.Categorical(tier["discount_tier"], categories=tier_order, ordered=True)
+    tier = tier.sort_values("discount_tier")
+
+    fig11 = px.bar(
+        tier, x="discount_tier", y="avg_margin",
+        color="avg_margin",
+        color_continuous_scale=[[0, PRIMARY], [0.5, ACCENT], [1, "#FFF7ED"]],
+        text="avg_margin",
+        labels={"avg_margin": "avg margin %", "discount_tier": "discount tier"}
+    )
+    fig11.update_traces(texttemplate="%{text:.1f}%", textposition="outside", marker_line_width=0)
+    fig11.update_coloraxes(showscale=False)
+    st.plotly_chart(chart_layout(fig11), use_container_width=True)
+
+
+# ── tab 5 — us choropleth map ──────────────────────────────────────────────
+with tab5:
+    map_metric = st.radio(
+        "Metric",
+        options=["Revenue", "Profit", "Orders", "Margin %"],
+        horizontal=True
+    )
+
+    state_df = sales.groupby("state").agg(
+        revenue=("total_revenue", "sum"),
+        profit=("total_profit", "sum"),
+        orders=("total_orders", "sum"),
+    ).reset_index()
+    state_df["margin"] = (state_df["profit"] / state_df["revenue"] * 100).round(2)
+
+    metric_map = {
+        "Revenue":  ("revenue",  "$,.0f", "Revenue ($)"),
+        "Profit":   ("profit",   "$,.0f", "Profit ($)"),
+        "Orders":   ("orders",   ",.0f",  "Orders"),
+        "Margin %": ("margin",   ".1f",   "Margin (%)"),
+    }
+    col, fmt, label = metric_map[map_metric]
+
+    fig12 = px.choropleth(
+        state_df,
+        locations="state",
+        locationmode="USA-states",
+        color=col,
+        scope="usa",
+        color_continuous_scale=[[0, "#FFF7ED"], [0.5, ACCENT], [1, PRIMARY]],
+        labels={col: label},
+        hover_name="state",
+        hover_data={"revenue": ":$,.0f", "profit": ":$,.0f", "orders": ":,", "margin": ":.1f"},
+    )
+    fig12.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        geo=dict(bgcolor="rgba(0,0,0,0)", lakecolor=BG, landcolor="#F5F5F4", showlakes=True),
+        font=dict(color=TEXT),
+        coloraxis_colorbar=dict(title=label, tickfont=dict(color=TEXT)),
+        margin=dict(l=0, r=0, t=0, b=0)
+    )
+    st.plotly_chart(fig12, use_container_width=True)
+
+    st.markdown("#### Top 10 states by " + map_metric.lower())
+    top10 = state_df.nlargest(10, col)[["state", col]].reset_index(drop=True)
+    top10.index += 1
+    top10.columns = ["State", label]
+    st.dataframe(top10, use_container_width=True)    
