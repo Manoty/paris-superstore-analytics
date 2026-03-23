@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: dim_customers
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_products
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_orders
+    columns:
+      - name: row_id
+        tests:
+          - unique
+          - not_null
+      - name: order_date
+        tests:
+          - not_null
+      - name: sales
+        tests:
+          - not_null
+
+  - name: mart_sales_summary
+    columns:
+      - name: total_revenue
+        tests:
+          - not_null
+
+  - name: mart_returns_analysis
+    columns:
+      - name: return_rate
+        tests:
+          - not_null
