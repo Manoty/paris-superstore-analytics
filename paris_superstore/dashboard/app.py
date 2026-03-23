@@ -100,6 +100,12 @@ def load_data():
 
 sales_df, returns_df = load_data()
 
+@st.cache_data
+def load_discount():
+    return q("select * from main_marts.mart_discount_analysis")
+
+discount_df = load_discount()
+
 # ── sidebar filters ────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"### 🛍️ Paris Superstore")
