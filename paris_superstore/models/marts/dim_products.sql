@@ -4,7 +4,23 @@ with orders as (
 
 ),
 
-products as (
+-- count occurrences of each full product combination
+product_counts as (
+
+    select
+        product_id,
+        product_name,
+        category,
+        sub_category,
+        count(*) as occurrences
+
+    from orders
+    group by 1, 2, 3, 4
+
+),
+
+-- rank combinations per product_id, most frequent wins
+ranked as (
 
     select
         product_id,
@@ -13,11 +29,10 @@ products as (
         sub_category,
         row_number() over (
             partition by product_id
-            order by count(*) desc
+            order by occurrences desc
         ) as rn
 
-    from orders
-    group by 1, 2, 3, 4
+    from product_counts
 
 ),
 
@@ -29,7 +44,7 @@ deduped as (
         category,
         sub_category
 
-    from products
+    from ranked
     where rn = 1
 
 )

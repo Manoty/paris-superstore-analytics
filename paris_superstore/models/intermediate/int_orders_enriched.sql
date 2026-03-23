@@ -6,7 +6,9 @@ with orders as (
 
 returns as (
 
-    select * from {{ ref('stg_returns') }}
+    -- deduplicate to one row per order_id before joining
+    select distinct order_id, true as is_returned
+    from {{ ref('stg_returns') }}
 
 ),
 
@@ -41,7 +43,7 @@ enriched as (
         o.postal_code,
         o.region,
 
-        -- manager (left join — 4 regions, always matches)
+        -- manager
         p.manager_name,
 
         -- product
@@ -61,7 +63,7 @@ enriched as (
             4
         )                                           as profit_margin,
 
-        -- returns (left join — nulls become false)
+        -- returns
         coalesce(r.is_returned, false)              as is_returned
 
     from orders o
