@@ -204,8 +204,13 @@ with k5: st.metric("Return rate", f"{return_rate:.1f}%", None)
 st.markdown("---")
 
 # ── tabs ───────────────────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["📈  Sales & Revenue", "↩️  Returns & Profitability", "🗺️  Regional Performance"])
-
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📈  Sales & Revenue",
+    "↩️  Returns & Profitability",
+    "🗺️  Regional Performance",
+    "💸  Discount Impact",
+    "🗺️  US Map",
+])
 # ── tab 1 ──────────────────────────────────────────────────────────────────
 with tab1:
     col1, col2 = st.columns([2, 1])
