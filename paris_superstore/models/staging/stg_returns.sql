@@ -8,10 +8,7 @@ renamed as (
 
     select
         "Order ID"                                      as order_id,
-        case
-            when upper(trim("Returned")) = 'YES' then true
-            else false
-        end                                             as is_returned
+        "Returned"::boolean                             as is_returned                                            as is_returned
 
     from source
 

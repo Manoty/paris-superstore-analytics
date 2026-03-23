@@ -12,8 +12,8 @@ renamed as (
         "Customer ID"                                   as customer_id,
         "Product ID"                                    as product_id,
 
-        strptime("Order Date", '%m/%d/%Y')::date        as order_date,
-        strptime("Ship Date",  '%m/%d/%Y')::date        as ship_date,
+        "Order Date"::date                              as order_date,
+        "Ship Date"::date                               as ship_date,
 
         "Customer Name"                                 as customer_name,
         "Segment"                                       as segment,
