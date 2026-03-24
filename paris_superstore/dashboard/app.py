@@ -102,6 +102,17 @@ def load_data():
 sales_df, returns_df = load_data()
 
 @st.cache_data
+def load_data():
+    sales    = q("select * from main_marts.mart_sales_summary")
+    returns  = q("select * from main_marts.mart_returns_analysis")
+    sales["order_month"] = pd.to_datetime(sales["order_month"])
+    return sales, returns
+
+@st.cache_data
+def load_discount():
+    return q("select * from main_marts.mart_discount_analysis")
+
+@st.cache_data
 def load_state():
     return q("""
         select
@@ -114,9 +125,9 @@ def load_state():
         group by 1, 2
     """)
 
-state_raw = load_state()
-
-discount_df = load_discount()
+sales_df, returns_df = load_data()
+discount_df          = load_discount()
+state_raw            = load_state()
 
 # ── sidebar filters ────────────────────────────────────────────────────────
 with st.sidebar:
@@ -247,7 +258,7 @@ with tab1:
             name="Profit", line=dict(color=ACCENT, width=2, dash="dot"), mode="lines+markers",
             marker=dict(size=4)
         ))
-        st.plotly_chart(chart_layout(fig, legend=True), use_container_width=True)
+        st.plotly_chart(chart_layout(fig, legend=True), width="stretch")
 
     with col2:
         st.markdown("#### By segment")
@@ -255,14 +266,14 @@ with tab1:
         fig2 = px.bar(seg, x="segment", y="total_revenue", color="segment",
                       color_discrete_sequence=PALETTE)
         fig2.update_traces(marker_line_width=0)
-        st.plotly_chart(chart_layout(fig2), use_container_width=True)
+        st.plotly_chart(chart_layout(fig2), width="stretch")
 
     st.markdown("#### Revenue by category over time")
     cat_time = sales.groupby(["order_month","category"])["total_revenue"].sum().reset_index()
     fig3 = px.area(cat_time, x="order_month", y="total_revenue", color="category",
                    color_discrete_sequence=PALETTE)
     fig3.update_traces(line_width=1)
-    st.plotly_chart(chart_layout(fig3, legend=True), use_container_width=True)
+    st.plotly_chart(chart_layout(fig3, legend=True), width="stretch")
 
 # ── tab 2 ──────────────────────────────────────────────────────────────────
 with tab2:
@@ -279,7 +290,7 @@ with tab2:
                       color_discrete_sequence=PALETTE)
         fig4.update_traces(marker_line_width=0)
         fig4.update_yaxes(title="return rate %")
-        st.plotly_chart(chart_layout(fig4), use_container_width=True)
+        st.plotly_chart(chart_layout(fig4), width="stretch")
 
     with col2:
         st.markdown("#### Return rate by segment")
@@ -292,7 +303,7 @@ with tab2:
                       color_discrete_sequence=PALETTE)
         fig5.update_traces(marker_line_width=0)
         fig5.update_yaxes(title="return rate %")
-        st.plotly_chart(chart_layout(fig5), use_container_width=True)
+        st.plotly_chart(chart_layout(fig5), width="stretch")
 
     st.markdown("#### Profit lost to returns — bottom 10 sub-categories")
     lost = returns.groupby("sub_category")["profit_lost_to_returns"].sum().reset_index()
@@ -301,7 +312,7 @@ with tab2:
                   orientation="h", color_discrete_sequence=[PRIMARY])
     fig6.update_traces(marker_line_width=0)
     fig6.update_xaxes(title="profit lost ($)")
-    st.plotly_chart(chart_layout(fig6), use_container_width=True)
+    st.plotly_chart(chart_layout(fig6), width="stretch")
 
 # ── tab 3 ──────────────────────────────────────────────────────────────────
 with tab3:
@@ -314,7 +325,7 @@ with tab3:
                       barmode="group", color_discrete_sequence=[PRIMARY, ACCENT],
                       hover_data={"manager_name": True})
         fig7.update_traces(marker_line_width=0)
-        st.plotly_chart(chart_layout(fig7, legend=True), use_container_width=True)
+        st.plotly_chart(chart_layout(fig7, legend=True), width="stretch")
 
     with col2:
         st.markdown("#### Profit margin by region & category")
@@ -328,14 +339,14 @@ with tab3:
                       barmode="group", color_discrete_sequence=PALETTE)
         fig8.update_traces(marker_line_width=0)
         fig8.update_yaxes(title="margin %")
-        st.plotly_chart(chart_layout(fig8, legend=True), use_container_width=True)
+        st.plotly_chart(chart_layout(fig8, legend=True), width="stretch")
 
     st.markdown("#### Revenue trend by region")
     reg_time = sales.groupby(["order_month","region"])["total_revenue"].sum().reset_index()
     fig9 = px.line(reg_time, x="order_month", y="total_revenue", color="region",
                    color_discrete_sequence=PALETTE, markers=True)
     fig9.update_traces(marker_size=4, line_width=2)
-    st.plotly_chart(chart_layout(fig9, legend=True), use_container_width=True)
+    st.plotly_chart(chart_layout(fig9, legend=True), width="stretch")
     
     
 # ── tab 4 — discount impact ────────────────────────────────────────────────
@@ -381,7 +392,7 @@ with tab4:
             annotation_font_color=PRIMARY
         )
         fig10.update_traces(marker_line_width=0, selector=dict(mode="markers"))
-        st.plotly_chart(chart_layout(fig10, legend=True), use_container_width=True)
+        st.plotly_chart(chart_layout(fig10, legend=True), width="stretch")
 
     st.markdown("#### Average profit margin by discount tier")
     tier = disc.groupby("discount_tier").agg(
@@ -403,7 +414,7 @@ with tab4:
     )
     fig11.update_traces(texttemplate="%{text:.1f}%", textposition="outside", marker_line_width=0)
     fig11.update_coloraxes(showscale=False)
-    st.plotly_chart(chart_layout(fig11), use_container_width=True)
+    st.plotly_chart(chart_layout(fig11), width="stretch")
 
 
 # ── tab 5 — us choropleth map ──────────────────────────────────────────────
@@ -414,11 +425,7 @@ with tab5:
         horizontal=True
     )
 
-    state_df = sales.groupby("state").agg(
-        revenue=("total_revenue", "sum"),
-        profit=("total_profit", "sum"),
-        orders=("total_orders", "sum"),
-    ).reset_index()
+    state_df = state_raw.copy()
     state_df["margin"] = (state_df["profit"] / state_df["revenue"] * 100).round(2)
 
     metric_map = {
@@ -447,10 +454,10 @@ with tab5:
         coloraxis_colorbar=dict(title=label, tickfont=dict(color=TEXT)),
         margin=dict(l=0, r=0, t=0, b=0)
     )
-    st.plotly_chart(fig12, use_container_width=True)
+    st.plotly_chart(fig12, width="stretch")
 
     st.markdown("#### Top 10 states by " + map_metric.lower())
     top10 = state_df.nlargest(10, col)[["state", col]].reset_index(drop=True)
     top10.index += 1
     top10.columns = ["State", label]
-    st.dataframe(top10, use_container_width=True)    
+    st.dataframe(top10, width="stretch")    

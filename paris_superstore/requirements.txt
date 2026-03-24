@@ -1,0 +1,8 @@
+dbt-core
+dbt-duckdb
+duckdb
+pandas
+streamlit
+plotly
+statsmodels
+openpyxl
